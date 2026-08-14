@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
 import { UserSession } from '../types';
-import { Lock, User, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Lock, User, AlertCircle, ArrowRight, ShieldCheck, Database, Download, Smartphone, Sparkles } from 'lucide-react';
 
 interface LoginFormProps {
   onLogin: (session: UserSession) => void;
+  error?: string;
+  isSupabaseConnected?: boolean;
+  onOpenSupabaseConfig?: () => void;
+  onInstallPwa?: () => void;
+  isPwaInstalled?: boolean;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({
+  onLogin,
+  error: propError,
+  isSupabaseConnected = false,
+  onOpenSupabaseConfig,
+  onInstallPwa,
+  isPwaInstalled = false,
+}) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(propError || null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +133,35 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
+
+        {/* Action Shortcuts: PWA Install & Database Config */}
+        <div className="space-y-2 pt-1">
+          {!isPwaInstalled && onInstallPwa && (
+            <button
+              type="button"
+              onClick={onInstallPwa}
+              className="w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-emerald-950 shadow-sm border border-amber-400 transition-all cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>Pasang Aplikasi PUASAKU (PWA di HP)</span>
+              <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+            </button>
+          )}
+
+          {onOpenSupabaseConfig && (
+            <button
+              type="button"
+              onClick={onOpenSupabaseConfig}
+              className="w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 transition-all cursor-pointer"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-700" />
+              <span>
+                Status Database: {isSupabaseConnected ? 'Cloud Supabase Terhubung' : 'Mode Lokal (Klik Kelola)'}
+              </span>
+              {isSupabaseConnected && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>}
+            </button>
+          )}
+        </div>
 
         {/* Clean Footer Info */}
         <div className="pt-4 border-t border-gray-100 text-center">

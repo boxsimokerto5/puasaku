@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { UserSession, FastingSession, FastingStatus, Student, AdminSettings } from './types';
 import {
   getStoredStudents,
@@ -11,6 +11,17 @@ import {
   getStoredAdminSettings,
   saveStoredAdminSettings,
 } from './data/students';
+import { isSupabaseConfigured } from './lib/supabase';
+import {
+  fetchSessionsFromSupabase,
+  upsertSessionToSupabase,
+  deleteSessionFromSupabase,
+  fetchStudentsFromSupabase,
+  syncAllStudentsToSupabase,
+  fetchAdminSettingsFromSupabase,
+  saveAdminSettingsToSupabase,
+  setupSupabaseRealtime,
+} from './services/supabaseService';
 import { HeaderNavbar } from './components/HeaderNavbar';
 import { LoginForm } from './components/LoginForm';
 import { SessionSelector } from './components/SessionSelector';
@@ -18,12 +29,18 @@ import { FastingInputterView } from './components/FastingInputterView';
 import { FastingCheckerView } from './components/FastingCheckerView';
 import { AdminPanel } from './components/AdminPanel';
 import { StudentDataModal } from './components/StudentDataModal';
+import { SupabaseConfigModal } from './components/SupabaseConfigModal';
 import { SplashScreen } from './components/SplashScreen';
-import { Sparkles } from 'lucide-react';
+import { PwaInstallPrompt } from './components/PwaInstallPrompt';
+import { usePwaInstall } from './hooks/usePwaInstall';
+import { Sparkles, Cloud, CloudCheck, RefreshCw, Download } from 'lucide-react';
 
 const USER_SESSION_KEY = 'sr_kediri_user_session_v1';
 
 export default function App() {
+  // PWA Install State & Detection
+  const pwaState = usePwaInstall();
+
   // Splash Screen State
   const [showSplash, setShowSplash] = useState(true);
 
@@ -50,6 +67,11 @@ export default function App() {
     getStoredAdminSettings()
   );
 
+  // Supabase Cloud State & Modal
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(() => isSupabaseConfigured());
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+
   // Admin active sub-view tab
   const [activeAdminTab, setActiveAdminTab] = useState<'admin' | 'input' | 'checker'>('admin');
 
@@ -65,12 +87,95 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Show auto-dismiss toast helper
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage(null);
-    }, 2500);
-  };
+    }, 2800);
+  }, []);
+
+  // Fetch initial data from Supabase & Setup Realtime Sync
+  const loadCloudData = useCallback(async () => {
+    const configured = isSupabaseConfigured();
+    setIsCloudConnected(configured);
+
+    if (!configured) return;
+
+    setIsCloudSyncing(true);
+    try {
+      // 1. Fetch Students
+      const cloudStudents = await fetchStudentsFromSupabase();
+      if (cloudStudents && cloudStudents.length > 0) {
+        setStudents(cloudStudents);
+        saveStoredStudents(cloudStudents);
+      }
+
+      // 2. Fetch Sessions
+      const cloudSessions = await fetchSessionsFromSupabase();
+      if (cloudSessions && Object.keys(cloudSessions).length > 0) {
+        setSessions(cloudSessions);
+        saveAllStoredSessions(cloudSessions);
+
+        const keys = Object.keys(cloudSessions);
+        if (!cloudSessions[activeSessionId] && keys.length > 0) {
+          setActiveSessionId(keys[0]);
+        }
+      }
+
+      // 3. Fetch Admin Settings
+      const cloudSettings = await fetchAdminSettingsFromSupabase();
+      if (cloudSettings) {
+        setAdminSettings(cloudSettings);
+        saveStoredAdminSettings(cloudSettings);
+      }
+    } catch (e) {
+      console.error('Error saat loadCloudData:', e);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    loadCloudData();
+
+    // Subscribe to Realtime Postgres Changes
+    const unsubscribe = setupSupabaseRealtime(
+      (updatedSession) => {
+        setSessions((prev) => {
+          const next = { ...prev, [updatedSession.id]: updatedSession };
+          saveAllStoredSessions(next);
+          return next;
+        });
+        showToast(`⚡ Realtime: Sesi "${updatedSession.title}" diperbarui.`);
+      },
+      (deletedId) => {
+        setSessions((prev) => {
+          const next = { ...prev };
+          delete next[deletedId];
+          saveAllStoredSessions(next);
+          return next;
+        });
+        showToast('⚡ Realtime: Sesi puasa dihapus.');
+      },
+      async () => {
+        const cloudStudents = await fetchStudentsFromSupabase();
+        if (cloudStudents && cloudStudents.length > 0) {
+          setStudents(cloudStudents);
+          saveStoredStudents(cloudStudents);
+          showToast('⚡ Realtime: Data master siswa diperbarui.');
+        }
+      },
+      (newSettings) => {
+        setAdminSettings(newSettings);
+        saveStoredAdminSettings(newSettings);
+        showToast('⚡ Realtime: Pengaturan admin diperbarui.');
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [loadCloudData, showToast]);
 
   // Login handler
   const handleLogin = (session: UserSession) => {
@@ -93,18 +198,25 @@ export default function App() {
   };
 
   // Update Students master data
-  const handleUpdateStudents = (newStudents: Student[]) => {
+  const handleUpdateStudents = async (newStudents: Student[]) => {
     setStudents(newStudents);
     saveStoredStudents(newStudents);
+
+    if (isSupabaseConfigured()) {
+      await syncAllStudentsToSupabase(newStudents);
+    }
   };
 
-  const handleResetStudents = () => {
+  const handleResetStudents = async () => {
     const reset = resetStoredStudents();
     setStudents(reset);
+    if (isSupabaseConfigured()) {
+      await syncAllStudentsToSupabase(reset);
+    }
   };
 
   // Create new Fasting Session
-  const handleCreateSession = (title: string, date: string) => {
+  const handleCreateSession = async (title: string, date: string) => {
     const id = `${date}_${title.trim().replace(/\s+/g, '_')}`;
     const newSession: FastingSession = {
       id,
@@ -113,7 +225,7 @@ export default function App() {
       records: {},
       isVerified: false,
       isLocked: false,
-      inputDeadline: adminSettings.defaultDeadlineTime || '14:00',
+      inputDeadline: adminSettings.defaultDeadlineTime || '15:00',
       createdById: user?.username,
       updatedAt: new Date().toISOString(),
     };
@@ -123,10 +235,14 @@ export default function App() {
     setSessions(updatedSessions);
     setActiveSessionId(id);
     showToast(`Sesi baru "${title}" berhasil dibuat!`);
+
+    if (isSupabaseConfigured()) {
+      await upsertSessionToSupabase(newSession);
+    }
   };
 
   // Toggle lock state for a session
-  const handleToggleLockSession = (sessionId: string, isLocked: boolean) => {
+  const handleToggleLockSession = async (sessionId: string, isLocked: boolean) => {
     const current = sessions[sessionId];
     if (!current) return;
 
@@ -149,10 +265,14 @@ export default function App() {
         ? `Sesi "${current.title}" berhasil DIKUNCI (Hanya Lihat)!`
         : `Sesi "${current.title}" berhasil DIBUKA untuk penginputan!`
     );
+
+    if (isSupabaseConfigured()) {
+      await upsertSessionToSupabase(updatedSession);
+    }
   };
 
   // Update input deadline
-  const handleUpdateDeadline = (sessionId: string, deadline: string) => {
+  const handleUpdateDeadline = async (sessionId: string, deadline: string) => {
     const current = sessions[sessionId];
     if (!current) return;
 
@@ -169,42 +289,50 @@ export default function App() {
     }));
 
     showToast(`Batas jam penginputan diatur ke ${deadline} WIB`);
+
+    if (isSupabaseConfigured()) {
+      await upsertSessionToSupabase(updatedSession);
+    }
   };
 
   // Update Admin Settings
-  const handleUpdateAdminSettings = (newSettings: AdminSettings) => {
+  const handleUpdateAdminSettings = async (newSettings: AdminSettings) => {
     setAdminSettings(newSettings);
     saveStoredAdminSettings(newSettings);
     showToast('Pengaturan Administrator berhasil disimpan!');
+
+    if (isSupabaseConfigured()) {
+      await saveAdminSettingsToSupabase(newSettings);
+    }
   };
 
   // Update single student record in active session
-  const handleUpdateRecord = (
+  const handleUpdateRecord = async (
     studentId: number,
     status: FastingStatus,
     notes?: string
   ) => {
-    const activeSession = sessions[activeSessionId];
-    if (!activeSession) return;
+    const currentActive = sessions[activeSessionId];
+    if (!currentActive) return;
 
     // Check lock
-    if (activeSession.isLocked && user?.role !== 'admin') {
+    if (currentActive.isLocked && user?.role !== 'admin') {
       showToast('⚠️ Sesi ini dikunci oleh Admin. Data tidak dapat diubah.');
       return;
     }
 
     const updatedRecords = {
-      ...activeSession.records,
+      ...currentActive.records,
       [studentId]: {
         studentId,
         status,
-        notes: notes !== undefined ? notes : activeSession.records[studentId]?.notes,
+        notes: notes !== undefined ? notes : currentActive.records[studentId]?.notes,
         updatedAt: new Date().toISOString(),
       },
     };
 
     const updatedSession: FastingSession = {
-      ...activeSession,
+      ...currentActive,
       records: updatedRecords,
       updatedAt: new Date().toISOString(),
     };
@@ -214,21 +342,25 @@ export default function App() {
       ...prev,
       [activeSessionId]: updatedSession,
     }));
+
+    if (isSupabaseConfigured()) {
+      upsertSessionToSupabase(updatedSession);
+    }
   };
 
   // Bulk update student records (e.g., mark all as fasting)
-  const handleBulkUpdateRecords = (
+  const handleBulkUpdateRecords = async (
     updates: { studentId: number; status: FastingStatus }[]
   ) => {
-    const activeSession = sessions[activeSessionId];
-    if (!activeSession) return;
+    const currentActive = sessions[activeSessionId];
+    if (!currentActive) return;
 
-    if (activeSession.isLocked && user?.role !== 'admin') {
+    if (currentActive.isLocked && user?.role !== 'admin') {
       showToast('⚠️ Sesi ini dikunci oleh Admin. Data tidak dapat diubah.');
       return;
     }
 
-    const updatedRecords = { ...activeSession.records };
+    const updatedRecords = { ...currentActive.records };
 
     updates.forEach(({ studentId, status }) => {
       updatedRecords[studentId] = {
@@ -240,7 +372,7 @@ export default function App() {
     });
 
     const updatedSession: FastingSession = {
-      ...activeSession,
+      ...currentActive,
       records: updatedRecords,
       updatedAt: new Date().toISOString(),
     };
@@ -252,15 +384,19 @@ export default function App() {
     }));
 
     showToast(`Berhasil memperbarui ${updates.length} data siswa!`);
+
+    if (isSupabaseConfigured()) {
+      upsertSessionToSupabase(updatedSession);
+    }
   };
 
   // Verify Fasting Session by Verifier (pengecek)
-  const handleVerifySession = (verifiedBy: string, verifierNotes?: string) => {
-    const activeSession = sessions[activeSessionId];
-    if (!activeSession) return;
+  const handleVerifySession = async (verifiedBy: string, verifierNotes?: string) => {
+    const currentActive = sessions[activeSessionId];
+    if (!currentActive) return;
 
     const updatedSession: FastingSession = {
-      ...activeSession,
+      ...currentActive,
       isVerified: true,
       verifiedBy,
       verifierNotes,
@@ -274,11 +410,15 @@ export default function App() {
       [activeSessionId]: updatedSession,
     }));
 
-    showToast(`Sesi "${activeSession.title}" resmi disahkan oleh ${verifiedBy}!`);
+    showToast(`Sesi "${currentActive.title}" resmi disahkan oleh ${verifiedBy}!`);
+
+    if (isSupabaseConfigured()) {
+      await upsertSessionToSupabase(updatedSession);
+    }
   };
 
   // Delete Fasting Session (Only allowed by Admin)
-  const handleDeleteSession = (sessionId: string) => {
+  const handleDeleteSession = async (sessionId: string) => {
     if (user?.role !== 'admin') {
       showToast('⚠️ Hanya Administrator yang memiliki hak menghapus sesi.');
       return;
@@ -311,6 +451,10 @@ export default function App() {
       }
     }
     showToast(`Sesi "${sessionToDelete?.title || 'Riwayat'}" berhasil dihapus!`);
+
+    if (isSupabaseConfigured()) {
+      await deleteSessionFromSupabase(sessionId);
+    }
   };
 
   // Get active session object safely
@@ -330,8 +474,33 @@ export default function App() {
     <>
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 
+      {/* PWA Auto-Detection & Installation Prompt Component */}
+      <PwaInstallPrompt pwaState={pwaState} />
+
       {!user ? (
-        <LoginForm onLogin={handleLogin} />
+        <>
+          <LoginForm
+            onLogin={handleLogin}
+            isSupabaseConnected={isCloudConnected}
+            onOpenSupabaseConfig={() => setIsSupabaseModalOpen(true)}
+            onInstallPwa={pwaState.triggerInstall}
+            isPwaInstalled={pwaState.isInstalled}
+          />
+          <SupabaseConfigModal
+            isOpen={isSupabaseModalOpen}
+            onClose={() => {
+              setIsSupabaseModalOpen(false);
+              setIsCloudConnected(isSupabaseConfigured());
+            }}
+            students={students}
+            sessions={sessions}
+            adminSettings={adminSettings}
+            onSyncCompleted={() => {
+              loadCloudData();
+              showToast('Data berhasil disinkronkan ke Supabase Cloud!');
+            }}
+          />
+        </>
       ) : (
         <div className="min-h-screen bg-emerald-950/5 flex flex-col font-sans text-gray-900">
           {/* Toast Notification */}
@@ -342,7 +511,7 @@ export default function App() {
             </div>
           )}
 
-          {/* Main Navbar */}
+          {/* Main Navbar with Supabase Cloud Status Indicator */}
           <HeaderNavbar
             user={user}
             onLogout={handleLogout}
@@ -350,6 +519,10 @@ export default function App() {
             activeSessionDate={activeSession.date}
             activeAdminTab={activeAdminTab}
             onSelectAdminTab={setActiveAdminTab}
+            isSupabaseConnected={isCloudConnected}
+            onOpenSupabaseConfig={() => setIsSupabaseModalOpen(true)}
+            onInstallPwa={pwaState.triggerInstall}
+            isPwaInstalled={pwaState.isInstalled}
           />
 
           {/* Main Container */}
@@ -382,6 +555,8 @@ export default function App() {
                   onCreateSession={handleCreateSession}
                   onSwitchView={(tab) => setActiveAdminTab(tab)}
                   onOpenStudentModal={() => setIsStudentModalOpen(true)}
+                  isSupabaseConnected={isCloudConnected}
+                  onOpenSupabaseConfig={() => setIsSupabaseModalOpen(true)}
                 />
               ) : activeAdminTab === 'input' ? (
                 <FastingInputterView
@@ -429,6 +604,22 @@ export default function App() {
             onResetStudents={handleResetStudents}
           />
 
+          {/* Supabase Cloud Connection & Sync Modal */}
+          <SupabaseConfigModal
+            isOpen={isSupabaseModalOpen}
+            onClose={() => {
+              setIsSupabaseModalOpen(false);
+              setIsCloudConnected(isSupabaseConfigured());
+            }}
+            students={students}
+            sessions={sessions}
+            adminSettings={adminSettings}
+            onSyncCompleted={() => {
+              loadCloudData();
+              showToast('Data berhasil disinkronkan ke Supabase Cloud!');
+            }}
+          />
+
           {/* Clean Footer */}
           <footer className="bg-emerald-950 text-emerald-300/80 text-xs py-5 border-t border-emerald-900 mt-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
@@ -438,9 +629,32 @@ export default function App() {
                   PUASAKU - SRT 1 KEDIRI
                 </span>
               </div>
-              <p className="text-[11px] text-emerald-400/70">
-                Aplikasi Pencatatan & Verifikasi Amalan Puasa Siswa © {new Date().getFullYear()}
-              </p>
+              <div className="flex items-center gap-3 flex-wrap justify-center sm:justify-end">
+                {!pwaState.isInstalled && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={pwaState.triggerInstall}
+                      className="text-amber-400 hover:text-amber-300 font-semibold transition-colors cursor-pointer text-[11px] flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Pasang PWA di HP</span>
+                    </button>
+                    <span className="text-emerald-700">•</span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsSupabaseModalOpen(true)}
+                  className="text-emerald-400 hover:text-amber-300 transition-colors cursor-pointer text-[11px] underline"
+                >
+                  {isCloudConnected ? 'Status: Terhubung ke Cloud Supabase' : 'Status: Mode Lokal (Hubungkan Cloud)'}
+                </button>
+                <span className="text-emerald-700">•</span>
+                <p className="text-[11px] text-emerald-400/70">
+                  Aplikasi Pencatatan & Verifikasi Amalan Puasa Siswa © {new Date().getFullYear()}
+                </p>
+              </div>
             </div>
           </footer>
         </div>

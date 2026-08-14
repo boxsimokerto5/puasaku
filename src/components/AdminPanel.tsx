@@ -18,7 +18,10 @@ import {
   ShieldCheck,
   Check,
   X,
-  FileText
+  FileText,
+  Database,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -35,6 +38,8 @@ interface AdminPanelProps {
   onCreateSession: (title: string, date: string) => void;
   onOpenStudentModal: () => void;
   onSwitchView: (view: 'input' | 'checker') => void;
+  isSupabaseConnected?: boolean;
+  onOpenSupabaseConfig?: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -51,6 +56,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onCreateSession,
   onOpenStudentModal,
   onSwitchView,
+  isSupabaseConnected = false,
+  onOpenSupabaseConfig,
 }) => {
   const activeSession: FastingSession =
     propActiveSession ||
@@ -335,7 +342,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {onOpenSupabaseConfig && (
+              <button
+                type="button"
+                onClick={onOpenSupabaseConfig}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border cursor-pointer ${
+                  isSupabaseConnected
+                    ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-emerald-200'
+                    : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                }`}
+              >
+                <Database className="w-4 h-4 text-emerald-700" />
+                <span>{isSupabaseConnected ? 'Database Cloud: Terhubung' : 'Database: Mode Lokal'}</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}

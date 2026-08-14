@@ -1,6 +1,20 @@
 import React from 'react';
 import { UserSession } from '../types';
-import { LogOut, ShieldCheck, UserCheck, Calendar, KeyRound, ShieldAlert, Sliders, CheckSquare, Edit3 } from 'lucide-react';
+import {
+  LogOut,
+  ShieldCheck,
+  UserCheck,
+  Calendar,
+  KeyRound,
+  Sliders,
+  CheckSquare,
+  Edit3,
+  Database,
+  Cloud,
+  CloudOff,
+  Download,
+  Smartphone,
+} from 'lucide-react';
 
 interface HeaderNavbarProps {
   user: UserSession;
@@ -9,6 +23,10 @@ interface HeaderNavbarProps {
   activeSessionDate?: string;
   activeAdminTab?: 'admin' | 'input' | 'checker';
   onSelectAdminTab?: (tab: 'admin' | 'input' | 'checker') => void;
+  isSupabaseConnected?: boolean;
+  onOpenSupabaseConfig?: () => void;
+  onInstallPwa?: () => void;
+  isPwaInstalled?: boolean;
 }
 
 export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
@@ -18,6 +36,10 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   activeSessionDate,
   activeAdminTab = 'admin',
   onSelectAdminTab,
+  isSupabaseConnected = false,
+  onOpenSupabaseConfig,
+  onInstallPwa,
+  isPwaInstalled = false,
 }) => {
   const isAdmin = user.role === 'admin';
   const isPenginput = user.role === 'penginput';
@@ -90,10 +112,50 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
             </div>
           )}
 
-          {/* Active Session Badge & Role Info */}
-          <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
+          {/* Active Session Badge, Cloud DB Status & Role Info */}
+          <div className="flex items-center justify-between sm:justify-end gap-2.5 flex-wrap">
+            {/* Supabase Status / Config Button */}
+            {onOpenSupabaseConfig && (
+              <button
+                type="button"
+                onClick={onOpenSupabaseConfig}
+                title={isSupabaseConnected ? 'Terhubung ke Supabase Cloud (Klik untuk kelola)' : 'Database Mode Lokal (Klik untuk menghubungkan Supabase)'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                  isSupabaseConnected
+                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50 hover:bg-emerald-800/60'
+                    : 'bg-amber-950/80 text-amber-300 border-amber-500/50 hover:bg-amber-900/60'
+                }`}
+              >
+                <Database className="w-3.5 h-3.5" />
+                {isSupabaseConnected ? (
+                  <>
+                    <Cloud className="w-3 h-3 text-emerald-400" />
+                    <span className="hidden md:inline">Supabase Cloud</span>
+                  </>
+                ) : (
+                  <>
+                    <CloudOff className="w-3 h-3 text-amber-400" />
+                    <span className="hidden md:inline">Mode Lokal</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* PWA Install Button (If not installed) */}
+            {!isPwaInstalled && onInstallPwa && (
+              <button
+                type="button"
+                onClick={onInstallPwa}
+                title="Pasang aplikasi PUASAKU ke HP/Desktop untuk akses cepat dan offline"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-emerald-950 shadow-sm transition-all border border-amber-300 cursor-pointer animate-pulse"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Pasang PWA</span>
+              </button>
+            )}
+
             {activeSessionTitle && (
-              <div className="hidden xl:flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 rounded-lg px-3 py-1.5 text-xs text-emerald-200">
+              <div className="hidden 2xl:flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 rounded-lg px-3 py-1.5 text-xs text-emerald-200">
                 <Calendar className="w-3.5 h-3.5 text-amber-400" />
                 <span className="font-semibold text-emerald-100">{activeSessionTitle}</span>
                 {activeSessionDate && (
@@ -148,4 +210,5 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
     </header>
   );
 };
+
 
