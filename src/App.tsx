@@ -643,13 +643,9 @@ export default function App() {
                     <span className="text-emerald-700">•</span>
                   </>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setIsSupabaseModalOpen(true)}
-                  className="text-emerald-400 hover:text-amber-300 transition-colors cursor-pointer text-[11px] underline"
-                >
-                  {isCloudConnected ? 'Status: Terhubung ke Cloud Supabase' : 'Status: Mode Lokal (Hubungkan Cloud)'}
-                </button>
+                <span className="text-[11px] text-emerald-400 font-medium">
+                  {isCloudConnected ? 'Cloud Supabase Terhubung' : 'Penyimpanan Aman'}
+                </span>
                 <span className="text-emerald-700">•</span>
                 <p className="text-[11px] text-emerald-400/70">
                   Aplikasi Pencatatan & Verifikasi Amalan Puasa Siswa © {new Date().getFullYear()}

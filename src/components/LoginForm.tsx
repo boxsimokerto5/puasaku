@@ -134,7 +134,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </button>
         </form>
 
-        {/* Action Shortcuts: PWA Install & Database Config */}
+        {/* Action Shortcuts: PWA Install */}
         <div className="space-y-2 pt-1">
           {!isPwaInstalled && onInstallPwa && (
             <button
@@ -145,20 +145,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               <Download className="w-4 h-4" />
               <span>Pasang Aplikasi PUASAKU (PWA di HP)</span>
               <Sparkles className="w-3.5 h-3.5 text-amber-200" />
-            </button>
-          )}
-
-          {onOpenSupabaseConfig && (
-            <button
-              type="button"
-              onClick={onOpenSupabaseConfig}
-              className="w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 transition-all cursor-pointer"
-            >
-              <Database className="w-3.5 h-3.5 text-emerald-700" />
-              <span>
-                Status Database: {isSupabaseConnected ? 'Cloud Supabase Terhubung' : 'Mode Lokal (Klik Kelola)'}
-              </span>
-              {isSupabaseConnected && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>}
             </button>
           )}
         </div>

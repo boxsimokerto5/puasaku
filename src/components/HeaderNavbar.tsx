@@ -114,32 +114,27 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
 
           {/* Active Session Badge, Cloud DB Status & Role Info */}
           <div className="flex items-center justify-between sm:justify-end gap-2.5 flex-wrap">
-            {/* Supabase Status / Config Button */}
-            {onOpenSupabaseConfig && (
-              <button
-                type="button"
-                onClick={onOpenSupabaseConfig}
-                title={isSupabaseConnected ? 'Terhubung ke Supabase Cloud (Klik untuk kelola)' : 'Database Mode Lokal (Klik untuk menghubungkan Supabase)'}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-                  isSupabaseConnected
-                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50 hover:bg-emerald-800/60'
-                    : 'bg-amber-950/80 text-amber-300 border-amber-500/50 hover:bg-amber-900/60'
-                }`}
-              >
-                <Database className="w-3.5 h-3.5" />
-                {isSupabaseConnected ? (
-                  <>
-                    <Cloud className="w-3 h-3 text-emerald-400" />
-                    <span className="hidden md:inline">Supabase Cloud</span>
-                  </>
-                ) : (
-                  <>
-                    <CloudOff className="w-3 h-3 text-amber-400" />
-                    <span className="hidden md:inline">Mode Lokal</span>
-                  </>
-                )}
-              </button>
-            )}
+            {/* Supabase Status Indicator (Display Only, Protected from Edit) */}
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border select-none ${
+                isSupabaseConnected
+                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50'
+                  : 'bg-emerald-950/40 text-emerald-400 border-emerald-700/40'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              {isSupabaseConnected ? (
+                <>
+                  <Cloud className="w-3 h-3 text-emerald-400" />
+                  <span className="hidden md:inline">Supabase Cloud</span>
+                </>
+              ) : (
+                <>
+                  <CloudOff className="w-3 h-3 text-emerald-400" />
+                  <span className="hidden md:inline">Tersimpan</span>
+                </>
+              )}
+            </div>
 
             {/* PWA Install Button (If not installed) */}
             {!isPwaInstalled && onInstallPwa && (

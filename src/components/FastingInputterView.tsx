@@ -306,7 +306,7 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
       )}
 
       {/* Top Banner Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100">
             <Users className="w-5 h-5" />
@@ -315,7 +315,7 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
               Total Siswa ({selectedClass === 'SEMUA' ? 'Semua' : selectedClass})
             </p>
-            <p className="text-xl font-bold text-gray-900">{stats.total}</p>
+            <p className="text-xl font-bold text-gray-900">{stats.total} Siswa</p>
           </div>
         </div>
 
@@ -325,37 +325,13 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
           </div>
           <div>
             <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
-              Berpuasa
+              Siswa Berpuasa
             </p>
 
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-bold text-emerald-950">{stats.berpuasa}</span>
-              <span className="text-xs text-emerald-600 font-semibold">({stats.percentPuasa}%)</span>
+              <span className="text-xs text-emerald-600 font-semibold">({stats.percentPuasa}% dari total)</span>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-rose-100 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-100">
-            <XCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
-              Tidak Puasa
-            </p>
-            <p className="text-xl font-bold text-rose-950">{stats.tidakPuasa}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-amber-100 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-100">
-            <Moon className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
-              Halangan / Uzur
-            </p>
-            <p className="text-xl font-bold text-amber-950">{stats.halangan}</p>
           </div>
         </div>
       </div>
@@ -501,53 +477,32 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
                         {/* Direct Action Buttons inside Dropdown */}
                         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                          <button
-                            type="button"
-                            disabled={isReadOnly}
-                            onClick={() => handleDirectStatusFromSuggest(s.id, 'berpuasa')}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
-                              isReadOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                            } ${
-                              status === 'berpuasa'
-                                ? 'bg-emerald-600 text-white shadow-xs'
-                                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white'
-                            }`}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Berpuasa</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isReadOnly}
-                            onClick={() => handleDirectStatusFromSuggest(s.id, 'tidak_puasa')}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
-                              isReadOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                            } ${
-                              status === 'tidak_puasa'
-                                ? 'bg-rose-600 text-white shadow-xs'
-                                : 'bg-rose-50 text-rose-800 hover:bg-rose-600 hover:text-white'
-                            }`}
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Tidak</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isReadOnly}
-                            onClick={() => handleDirectStatusFromSuggest(s.id, 'halangan')}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
-                              isReadOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                            } ${
-                              status === 'halangan'
-                                ? 'bg-amber-500 text-white shadow-xs'
-                                : 'bg-amber-50 text-amber-800 hover:bg-amber-500 hover:text-white'
-                            }`}
-                          >
-                            <Moon className="w-3.5 h-3.5" />
-                            <span>Halangan</span>
-                          </button>
+                          {status === 'berpuasa' ? (
+                            <button
+                              type="button"
+                              disabled={isReadOnly}
+                              onClick={() => handleDirectStatusFromSuggest(s.id, 'belum_diisi')}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                                isReadOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                              } bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 shadow-xs`}
+                              title="Batalkan status puasa"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Batal Puasa</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isReadOnly}
+                              onClick={() => handleDirectStatusFromSuggest(s.id, 'berpuasa')}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                                isReadOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                              } bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs`}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Tandai Puasa</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -569,11 +524,9 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
               onChange={(e) => setStatusFilter(e.target.value)}
               className="py-1.5 px-3 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600 cursor-pointer"
             >
-              <option value="ALL">Semua Status</option>
-              <option value="berpuasa">✓ Berpuasa</option>
-              <option value="tidak_puasa">✗ Tidak Puasa</option>
-              <option value="halangan">🌙 Halangan/Uzur</option>
-              <option value="belum_diisi">? Belum Diisi</option>
+              <option value="ALL">Semua Siswa</option>
+              <option value="berpuasa">✓ Berpuasa ({stats.berpuasa})</option>
+              <option value="belum_diisi">○ Belum Puasa / Belum Terdata ({stats.total - stats.berpuasa})</option>
             </select>
 
             {/* Toggle show all / hidden button */}
@@ -720,54 +673,31 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
                   </div>
 
                   {/* Fasting Status Toggle Selector */}
-                  <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
-                    {/* Berpuasa */}
-                    <button
-                      disabled={isReadOnly}
-                      onClick={() => handleUpdateStudentStatus(s.id, 'berpuasa')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                        isReadOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
-                      } ${
-                        status === 'berpuasa'
-                          ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-600/30'
-                          : 'bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-700'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Berpuasa</span>
-                    </button>
-
-                    {/* Tidak Puasa */}
-                    <button
-                      disabled={isReadOnly}
-                      onClick={() => handleUpdateStudentStatus(s.id, 'tidak_puasa')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                        isReadOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
-                      } ${
-                        status === 'tidak_puasa'
-                          ? 'bg-rose-600 text-white shadow-md ring-2 ring-rose-600/30'
-                          : 'bg-gray-100 text-gray-600 hover:bg-rose-50 hover:text-rose-700'
-                      }`}
-                    >
-                      <XCircle className="w-4 h-4" />
-                      <span>Tidak</span>
-                    </button>
-
-                    {/* Halangan */}
-                    <button
-                      disabled={isReadOnly}
-                      onClick={() => handleUpdateStudentStatus(s.id, 'halangan')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                        isReadOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
-                      } ${
-                        status === 'halangan'
-                          ? 'bg-amber-500 text-white shadow-md ring-2 ring-amber-500/30'
-                          : 'bg-gray-100 text-gray-600 hover:bg-amber-50 hover:text-amber-700'
-                      }`}
-                    >
-                      <Moon className="w-4 h-4" />
-                      <span>Halangan</span>
-                    </button>
+                  <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                    {status === 'berpuasa' ? (
+                      <button
+                        disabled={isReadOnly}
+                        onClick={() => handleUpdateStudentStatus(s.id, 'belum_diisi')}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                          isReadOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                        } bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 shadow-sm active:scale-95`}
+                        title="Batalkan tanda puasa untuk siswa ini"
+                      >
+                        <RotateCcw className="w-4 h-4 text-amber-700" />
+                        <span>Batal Puasa</span>
+                      </button>
+                    ) : (
+                      <button
+                        disabled={isReadOnly}
+                        onClick={() => handleUpdateStudentStatus(s.id, 'berpuasa')}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                          isReadOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                        } bg-emerald-600 hover:bg-emerald-700 text-white shadow-md active:scale-95`}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Tandai Puasa</span>
+                      </button>
+                    )}
 
                     {/* Notes Button */}
                     <button

@@ -66,6 +66,10 @@ let cachedClient: SupabaseClient | null = null;
 export function getSupabase(): SupabaseClient | null {
   if (cachedClient) return cachedClient;
 
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
   const config = getSupabaseConfig();
   if (!config.url || !config.anonKey) {
     return null;
