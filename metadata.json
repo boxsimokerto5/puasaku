@@ -1,0 +1,6 @@
+{
+  "name": "Pencatatan Puasa Sekolah Rakyat",
+  "description": "Aplikasi Pencatatan dan Verifikasi Puasa Siswa Sekolah Rakyat Kabupaten Kediri",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
