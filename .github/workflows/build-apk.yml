@@ -71,10 +71,10 @@ jobs:
           echo "Menyinkronkan web dist ke Android..."
           npx cap sync android
 
-      - name: 🔐 Generate Automatic Signature Keystore
+      - name: 🔐 Generate Automatic Keystore
         id: generate_keystore
         run: |
-          KEYSTORE_PATH="android/app/release.keystore"
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
           KEY_ALIAS="puasaku_key"
           KEY_PASS="puasaku123456"
           STORE_PASS="puasaku123456"
@@ -94,48 +94,7 @@ jobs:
           echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
           echo "KEY_PASS=$KEY_PASS" >> $GITHUB_ENV
           echo "STORE_PASS=$STORE_PASS" >> $GITHUB_ENV
-          echo "✓ Keystore berhasil dibuat secara otomatis!"
-
-      - name: ⚙️ Configure Gradle Signing for Release
-        run: |
-          GRADLE_FILE="android/app/build.gradle"
-          
-          # Inject signingConfigs into android/app/build.gradle
-          node -e '
-            const fs = require("fs");
-            let content = fs.readFileSync("android/app/build.gradle", "utf8");
-            
-            const signingConfig = `
-                signingConfigs {
-                    release {
-                        storeFile file("release.keystore")
-                        storePassword "puasaku123456"
-                        keyAlias "puasaku_key"
-                        keyPassword "puasaku123456"
-                    }
-                }
-            `;
-            
-            // Add signingConfigs inside android { ... }
-            if (!content.includes("signingConfigs {")) {
-              content = content.replace("android {", "android {" + signingConfig);
-            }
-            
-            // Update buildTypes.release to use signingConfig
-            content = content.replace(
-              /buildTypes\s*{\s*release\s*{[^}]*}/s,
-              `buildTypes {
-                    release {
-                        minifyEnabled false
-                        proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-                        signingConfig signingConfigs.release
-                    }
-                }`
-            );
-            
-            fs.writeFileSync("android/app/build.gradle", content);
-            console.log("✓ Gradle signing configuration updated!");
-          '
+          echo "✓ Keystore berhasil dibuat!"
 
       - name: 🔨 Build Android APK with Gradle
         run: |
@@ -143,32 +102,48 @@ jobs:
           chmod +x gradlew
           
           BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+          echo "Building with Gradle: $BUILD_TYPE"
           
           if [ "$BUILD_TYPE" = "debug" ]; then
-            echo "Building Debug APK..."
-            ./gradlew assembleDebug --stacktrace
+            ./gradlew assembleDebug --no-daemon --stacktrace
           elif [ "$BUILD_TYPE" = "release" ]; then
-            echo "Building Signed Release APK..."
-            ./gradlew assembleRelease --stacktrace
+            ./gradlew assembleRelease --no-daemon --stacktrace
           else
-            echo "Building Both Release and Debug APKs..."
-            ./gradlew assembleRelease assembleDebug --stacktrace
+            ./gradlew assembleRelease assembleDebug --no-daemon --stacktrace
           fi
 
-      - name: 📋 Organize & Prepare Output APK Artifacts
+      - name: 🔏 Sign & Align Release APK with Android SDK apksigner
         run: |
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          echo "Menggunakan Android Build Tools di: $BUILD_TOOLS"
+          
           mkdir -p build-output
           
-          # Copy Release APK if exists
-          if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk build-output/PUASAKU-SRT1Kediri-v1.0.0-Release-Signed.apk
-            echo "✓ Release APK ready: build-output/PUASAKU-SRT1Kediri-v1.0.0-Release-Signed.apk"
+          # Check for unsigned or generated release APK
+          RELEASE_APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          
+          if [ -n "$RELEASE_APK" ] && [ -f "$RELEASE_APK" ]; then
+            echo "Release APK ditemukan: $RELEASE_APK"
+            
+            # Sign the release APK with apksigner
+            $BUILD_TOOLS/apksigner sign \
+              --ks "$KEYSTORE_PATH" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass "pass:$STORE_PASS" \
+              --key-pass "pass:$KEY_PASS" \
+              --out build-output/PUASAKU-SRT1Kediri-v1.0.0-Release-Signed.apk \
+              "$RELEASE_APK"
+              
+            echo "Memverifikasi signature APK..."
+            $BUILD_TOOLS/apksigner verify --verbose build-output/PUASAKU-SRT1Kediri-v1.0.0-Release-Signed.apk
+            echo "✓ Release APK berhasil ditandatangani dan diverifikasi!"
           fi
           
-          # Copy Debug APK if exists
-          if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
-            cp android/app/build/outputs/apk/debug/app-debug.apk build-output/PUASAKU-SRT1Kediri-v1.0.0-Debug.apk
-            echo "✓ Debug APK ready: build-output/PUASAKU-SRT1Kediri-v1.0.0-Debug.apk"
+          # Check for debug APK
+          DEBUG_APK=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          if [ -n "$DEBUG_APK" ] && [ -f "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" build-output/PUASAKU-SRT1Kediri-v1.0.0-Debug.apk
+            echo "✓ Debug APK siap: build-output/PUASAKU-SRT1Kediri-v1.0.0-Debug.apk"
           fi
 
       - name: 🚀 Upload APK Artifacts
