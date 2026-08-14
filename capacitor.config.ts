@@ -10,11 +10,7 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: true,
-    backgroundColor: '#064e3b',
-    buildOptions: {
-      keystorePath: 'release-key.keystore',
-      keystoreAlias: 'puasaku',
-    }
+    backgroundColor: '#064e3b'
   }
 };
 
