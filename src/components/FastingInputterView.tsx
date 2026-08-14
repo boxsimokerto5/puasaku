@@ -23,7 +23,11 @@ import {
   Check,
   X,
   Plus,
-  FileText
+  FileText,
+  Lock,
+  Unlock,
+  ShieldAlert,
+  Clock
 } from 'lucide-react';
 
 interface FastingInputterViewProps {
@@ -32,6 +36,8 @@ interface FastingInputterViewProps {
   onUpdateRecord: (studentId: number, status: FastingStatus, notes?: string) => void;
   onBulkUpdateRecords: (updates: { studentId: number; status: FastingStatus }[]) => void;
   onOpenStudentModal: () => void;
+  isAdmin?: boolean;
+  onToggleLockSession?: (sessionId: string, locked: boolean) => void;
 }
 
 export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
@@ -40,6 +46,8 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
   onUpdateRecord,
   onBulkUpdateRecords,
   onOpenStudentModal,
+  isAdmin = false,
+  onToggleLockSession,
 }) => {
   const [selectedClass, setSelectedClass] = useState<string>('SEMUA');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -47,6 +55,9 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
   const [activeNoteStudentId, setActiveNoteStudentId] = useState<number | null>(null);
   const [noteText, setNoteText] = useState<string>('');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false);
+  
+  const isLocked = Boolean(activeSession.isLocked);
+  const isReadOnly = isLocked && !isAdmin;
   
   // Explicitly selected student IDs (selected via search or interaction)
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
@@ -195,6 +206,7 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
   // Helper to handle status update and keep selectedStudentIds in sync
   const handleUpdateStudentStatus = (studentId: number, status: FastingStatus) => {
+    if (isReadOnly) return;
     onUpdateRecord(studentId, status);
     if (status === 'berpuasa') {
       if (!selectedStudentIds.includes(studentId)) {
@@ -207,12 +219,13 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
   // Set status directly from suggest dropdown
   const handleDirectStatusFromSuggest = (studentId: number, status: FastingStatus) => {
+    if (isReadOnly) return;
     handleUpdateStudentStatus(studentId, status);
     setIsSearchFocused(false);
   };
 
   const handleBulkSetStatus = (status: FastingStatus) => {
-    if (displayedStudents.length === 0) return;
+    if (isReadOnly || displayedStudents.length === 0) return;
     const updates = displayedStudents.map((s) => ({
       studentId: s.id,
       status,
@@ -225,6 +238,7 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
   };
 
   const handleSaveNote = (studentId: number) => {
+    if (isReadOnly) return;
     const currentRecord = activeSession.records[studentId];
     const currentStatus = currentRecord?.status || 'belum_diisi';
     onUpdateRecord(studentId, currentStatus, noteText);
@@ -234,6 +248,63 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Session Lock Banner Alert for Regular Penginput */}
+      {isReadOnly && (
+        <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md animate-in fade-in duration-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-rose-200 text-rose-800 shrink-0">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-rose-950 flex items-center gap-2">
+                <span>Penginputan Sesi Ini Telah DIKUNCI oleh Admin</span>
+              </h4>
+              <p className="text-xs text-rose-800 mt-0.5">
+                Batas waktu penginputan telah selesai atau dikunci oleh Administrator demi menjaga keaslian data. Anda saat ini dalam mode <strong>Hanya Lihat (Read-Only)</strong>.
+              </p>
+            </div>
+          </div>
+          {activeSession.inputDeadline && (
+            <div className="px-3 py-1.5 rounded-xl bg-rose-100 border border-rose-200 text-rose-900 text-xs font-bold shrink-0 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Batas: {activeSession.inputDeadline} WIB</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Admin Quick Control Banner */}
+      {isAdmin && onToggleLockSession && (
+        <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 text-purple-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-purple-200 text-purple-800 shrink-0">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-purple-950">
+                Mode Administrator Aktif (Akses Penuh Penginputan)
+              </p>
+              <p className="text-[11px] text-purple-800">
+                Status saat ini: {isLocked ? '🔒 Dikunci untuk Penginput biasa' : '🔓 Terbuka (Penginput bisa mengisi)'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onToggleLockSession(activeSession.id, !isLocked)}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer ${
+              isLocked
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-rose-600 hover:bg-rose-700 text-white'
+            }`}
+          >
+            {isLocked ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            <span>{isLocked ? 'Buka Kunci Sesi' : 'Kunci Sesi Ini'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Top Banner Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
@@ -394,7 +465,9 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
               <div className="absolute left-0 right-0 top-full mt-2 z-40 bg-white border border-emerald-100 rounded-2xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto divide-y divide-gray-100 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-4 py-2.5 bg-emerald-900 text-white text-[11px] font-bold flex justify-between items-center">
                   <span>Hasil Pencarian & Saran Siswa ({searchSuggestions.length})</span>
-                  <span className="text-emerald-300 font-normal">Klik untuk memilih atau beri status</span>
+                  <span className="text-emerald-300 font-normal">
+                    {isReadOnly ? 'Mode Hanya Lihat' : 'Klik untuk memilih atau beri status'}
+                  </span>
                 </div>
 
                 {searchSuggestions.length === 0 ? (
@@ -430,8 +503,11 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
                         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                           <button
                             type="button"
+                            disabled={isReadOnly}
                             onClick={() => handleDirectStatusFromSuggest(s.id, 'berpuasa')}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
+                              isReadOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                            } ${
                               status === 'berpuasa'
                                 ? 'bg-emerald-600 text-white shadow-xs'
                                 : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white'
@@ -443,8 +519,11 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
                           <button
                             type="button"
+                            disabled={isReadOnly}
                             onClick={() => handleDirectStatusFromSuggest(s.id, 'tidak_puasa')}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
+                              isReadOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                            } ${
                               status === 'tidak_puasa'
                                 ? 'bg-rose-600 text-white shadow-xs'
                                 : 'bg-rose-50 text-rose-800 hover:bg-rose-600 hover:text-white'
@@ -456,8 +535,11 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
                           <button
                             type="button"
+                            disabled={isReadOnly}
                             onClick={() => handleDirectStatusFromSuggest(s.id, 'halangan')}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
+                              isReadOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                            } ${
                               status === 'halangan'
                                 ? 'bg-amber-500 text-white shadow-xs'
                                 : 'bg-amber-50 text-amber-800 hover:bg-amber-500 hover:text-white'
@@ -518,7 +600,7 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
           </div>
 
           {/* Bulk Action Buttons for Displayed Students */}
-          {displayedStudents.length > 0 && (
+          {displayedStudents.length > 0 && !isReadOnly && (
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => handleBulkSetStatus('berpuasa')}
@@ -641,8 +723,11 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
                   <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
                     {/* Berpuasa */}
                     <button
+                      disabled={isReadOnly}
                       onClick={() => handleUpdateStudentStatus(s.id, 'berpuasa')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                        isReadOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                      } ${
                         status === 'berpuasa'
                           ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-600/30'
                           : 'bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-700'
@@ -654,8 +739,11 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
                     {/* Tidak Puasa */}
                     <button
+                      disabled={isReadOnly}
                       onClick={() => handleUpdateStudentStatus(s.id, 'tidak_puasa')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                        isReadOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                      } ${
                         status === 'tidak_puasa'
                           ? 'bg-rose-600 text-white shadow-md ring-2 ring-rose-600/30'
                           : 'bg-gray-100 text-gray-600 hover:bg-rose-50 hover:text-rose-700'
@@ -667,8 +755,11 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
                     {/* Halangan */}
                     <button
+                      disabled={isReadOnly}
                       onClick={() => handleUpdateStudentStatus(s.id, 'halangan')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                        isReadOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                      } ${
                         status === 'halangan'
                           ? 'bg-amber-500 text-white shadow-md ring-2 ring-amber-500/30'
                           : 'bg-gray-100 text-gray-600 hover:bg-amber-50 hover:text-amber-700'
@@ -680,12 +771,15 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
 
                     {/* Notes Button */}
                     <button
+                      disabled={isReadOnly}
                       onClick={() => {
                         setActiveNoteStudentId(s.id);
                         setNoteText(record?.notes || '');
                       }}
-                      className="p-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-emerald-100 hover:text-emerald-800 transition-all cursor-pointer"
-                      title="Tambah Catatan Sederhana"
+                      className={`p-2 rounded-xl bg-gray-100 text-gray-600 hover:bg-emerald-100 hover:text-emerald-800 transition-all ${
+                        isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+                      }`}
+                      title={isReadOnly ? 'Hanya Lihat' : 'Tambah Catatan Sederhana'}
                     >
                       <MessageSquare className="w-4 h-4" />
                     </button>
@@ -698,7 +792,7 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
       </div>
 
       {/* Note Input Modal / Floating Drawer */}
-      {activeNoteStudentId !== null && (
+      {activeNoteStudentId !== null && !isReadOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl border border-gray-100 space-y-4">
             <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
@@ -745,3 +839,4 @@ export const FastingInputterView: React.FC<FastingInputterViewProps> = ({
     </div>
   );
 };
+

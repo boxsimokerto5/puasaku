@@ -1,12 +1,14 @@
 import React from 'react';
 import { UserSession } from '../types';
-import { BookOpen, LogOut, ShieldCheck, UserCheck, Calendar, Sparkles } from 'lucide-react';
+import { LogOut, ShieldCheck, UserCheck, Calendar, KeyRound, ShieldAlert, Sliders, CheckSquare, Edit3 } from 'lucide-react';
 
 interface HeaderNavbarProps {
   user: UserSession;
   onLogout: () => void;
   activeSessionTitle?: string;
   activeSessionDate?: string;
+  activeAdminTab?: 'admin' | 'input' | 'checker';
+  onSelectAdminTab?: (tab: 'admin' | 'input' | 'checker') => void;
 }
 
 export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
@@ -14,37 +16,84 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   onLogout,
   activeSessionTitle,
   activeSessionDate,
+  activeAdminTab = 'admin',
+  onSelectAdminTab,
 }) => {
+  const isAdmin = user.role === 'admin';
   const isPenginput = user.role === 'penginput';
 
   return (
     <header className="bg-emerald-900 text-white shadow-md border-b border-emerald-800 sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Logo & School Title */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-700/80 border border-emerald-500/50 flex items-center justify-center text-amber-300 shadow-inner">
-              <BookOpen className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-950/80 border border-amber-400/40 p-1 flex items-center justify-center shadow-inner shrink-0">
+              <img src="/assets/logo.svg" alt="Logo Puasaku" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold text-emerald-50 tracking-wide">
-                  Sekolah Rakyat Kediri
+                <h1 className="text-lg font-black text-amber-300 tracking-wide font-sans">
+                  PUASAKU
                 </h1>
-                <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-800 text-emerald-200 border border-emerald-700">
-                  <Sparkles className="w-3 h-3 mr-1 text-amber-400" /> SIM Puasa
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-800 text-emerald-100 border border-emerald-700">
+                  SRT 1 KEDIRI
                 </span>
               </div>
-              <p className="text-xs text-emerald-300 font-medium">
+              <p className="text-[11px] text-emerald-300 font-medium">
                 Pencatatan & Verifikasi Amalan Puasa Siswa
               </p>
             </div>
           </div>
 
+          {/* Admin Navigation Tabs (Only visible when user is Admin) */}
+          {isAdmin && onSelectAdminTab && (
+            <div className="flex items-center bg-emerald-950/80 p-1 rounded-xl border border-emerald-700/60 shadow-inner">
+              <button
+                type="button"
+                onClick={() => onSelectAdminTab('admin')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeAdminTab === 'admin'
+                    ? 'bg-purple-600 text-white shadow'
+                    : 'text-emerald-300 hover:text-white hover:bg-emerald-800/60'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Panel Admin</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectAdminTab('input')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeAdminTab === 'input'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-emerald-300 hover:text-white hover:bg-emerald-800/60'
+                }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Form Input</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectAdminTab('checker')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  activeAdminTab === 'checker'
+                    ? 'bg-amber-500 text-emerald-950 shadow'
+                    : 'text-emerald-300 hover:text-white hover:bg-emerald-800/60'
+                }`}
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span>Ceklist Pengecek</span>
+              </button>
+            </div>
+          )}
+
           {/* Active Session Badge & Role Info */}
           <div className="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
             {activeSessionTitle && (
-              <div className="hidden lg:flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 rounded-lg px-3 py-1.5 text-xs text-emerald-200">
+              <div className="hidden xl:flex items-center gap-2 bg-emerald-950/60 border border-emerald-800 rounded-lg px-3 py-1.5 text-xs text-emerald-200">
                 <Calendar className="w-3.5 h-3.5 text-amber-400" />
                 <span className="font-semibold text-emerald-100">{activeSessionTitle}</span>
                 {activeSessionDate && (
@@ -54,8 +103,18 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
             )}
 
             {/* Role Badge */}
-            <div className="flex items-center gap-2 bg-emerald-800/80 border border-emerald-700 rounded-lg px-3 py-1.5">
-              {isPenginput ? (
+            <div
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 border ${
+                isAdmin
+                  ? 'bg-purple-900/80 border-purple-600'
+                  : isPenginput
+                  ? 'bg-amber-900/60 border-amber-600'
+                  : 'bg-emerald-800/80 border-emerald-700'
+              }`}
+            >
+              {isAdmin ? (
+                <KeyRound className="w-4 h-4 text-purple-300" />
+              ) : isPenginput ? (
                 <UserCheck className="w-4 h-4 text-amber-300" />
               ) : (
                 <ShieldCheck className="w-4 h-4 text-emerald-300" />
@@ -64,8 +123,12 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
                 <p className="text-xs font-bold text-white leading-none">
                   {user.name}
                 </p>
-                <p className="text-[10px] text-emerald-300 font-medium">
-                  {isPenginput ? 'Penginput Data Siswa' : 'Petugas Pengecek'}
+                <p className="text-[10px] text-emerald-200 font-medium mt-0.5">
+                  {isAdmin
+                    ? '👑 Administrator Utama'
+                    : isPenginput
+                    ? '✍️ Penginput Data'
+                    : '🛡️ Petugas Pengecek'}
                 </p>
               </div>
             </div>
@@ -85,3 +148,4 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
     </header>
   );
 };
+

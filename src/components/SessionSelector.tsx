@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FastingSession } from '../types';
-import { Calendar, Plus, Check, ChevronDown, Sparkles, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Calendar, Plus, Check, ChevronDown, Sparkles, Trash2, AlertTriangle, X, Lock, Unlock } from 'lucide-react';
 
 interface SessionSelectorProps {
   sessions: Record<string, FastingSession>;
@@ -8,7 +8,8 @@ interface SessionSelectorProps {
   onSelectSession: (id: string) => void;
   onCreateSession: (title: string, date: string) => void;
   onDeleteSession?: (id: string) => void;
-  isPenginput: boolean;
+  isAdmin?: boolean;
+  canCreateSession?: boolean;
 }
 
 const PRESET_TITLES = [
@@ -25,14 +26,15 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
   onSelectSession,
   onCreateSession,
   onDeleteSession,
-  isPenginput,
+  isAdmin = false,
+  canCreateSession = true,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<FastingSession | null>(null);
 
   const [newTitle, setNewTitle] = useState('Puasa Sunnah Senin');
-  const [newDate, setNewDate] = useState('2026-08-27');
+  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
   const [customTitle, setCustomTitle] = useState('');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -79,7 +81,7 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
   };
 
   const confirmDelete = () => {
-    if (sessionToDelete && onDeleteSession) {
+    if (sessionToDelete && onDeleteSession && isAdmin) {
       onDeleteSession(sessionToDelete.id);
       setSessionToDelete(null);
       setIsDropdownOpen(false);
@@ -99,31 +101,41 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
               <span className="text-xs uppercase tracking-wider font-bold text-emerald-300">
                 Sesi Input Yang Aktif
               </span>
-              {activeSession?.isVerified ? (
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-400 text-emerald-950 border border-amber-300">
-                  ✓ Terverifikasi
+              {activeSession?.isLocked ? (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-900/90 text-rose-200 border border-rose-600 flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Terkunci (Read-Only)
                 </span>
               ) : (
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-900/80 text-emerald-200 border border-emerald-700">
-                  Draf Input
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-900/80 text-emerald-200 border border-emerald-700 flex items-center gap-1">
+                  <Unlock className="w-3 h-3" /> Terbuka
+                </span>
+              )}
+              {activeSession?.isVerified && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-400 text-emerald-950 border border-amber-300">
+                  ✓ Terverifikasi
                 </span>
               )}
             </div>
             <h2 className="text-lg sm:text-xl font-bold text-white mt-0.5">
-              {activeSession?.title || 'Puasa Senin'}
+              {activeSession?.title || 'Puasa Sunnah Senin'}
             </h2>
             <p className="text-xs text-emerald-200 font-medium">
               Tanggal:{' '}
               <span className="font-semibold text-amber-300">
                 {activeSession ? formatDateIndo(activeSession.date) : '27 Agustus 2026'}
               </span>
+              {activeSession?.inputDeadline && (
+                <span className="ml-2 text-amber-200">
+                  • Batas Jam: {activeSession.inputDeadline} WIB
+                </span>
+              )}
             </p>
           </div>
         </div>
 
         {/* Actions & Selector Dropdown */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Custom History Selector Dropdown with Trash icons */}
+          {/* Custom History Selector Dropdown with Trash icons (Admin only) */}
           <div className="relative flex-1 sm:flex-initial min-w-[220px]" ref={dropdownRef}>
             <button
               type="button"
@@ -147,7 +159,7 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
                 <div className="px-3.5 py-2.5 bg-emerald-900 text-white font-bold text-xs flex items-center justify-between border-b border-emerald-800">
                   <span>Riwayat Sesi Puasa ({sessionList.length})</span>
                   <span className="text-[10px] font-normal text-emerald-200">
-                    Klik untuk memilih / hapus
+                    Klik untuk memilih
                   </span>
                 </div>
 
@@ -172,15 +184,22 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
                             {isActive && <Check className="w-4 h-4 text-emerald-700 font-extrabold" />}
                           </div>
                           <div className="truncate">
-                            <p className="text-xs font-bold text-gray-900 truncate">{s.title}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-bold text-gray-900 truncate">{s.title}</p>
+                              {s.isLocked && (
+                                <span className="text-[10px] px-1.5 py-0.2 bg-rose-100 text-rose-800 rounded font-semibold">
+                                  Terkunci
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-gray-500 font-medium">
-                              {formatDateIndo(s.date)} {s.isVerified && '• ✓ Terverifikasi'}
+                              {formatDateIndo(s.date)} {s.isVerified && '• ✓ Disahkan'}
                             </p>
                           </div>
                         </div>
 
-                        {/* Trash Button */}
-                        {onDeleteSession && (
+                        {/* Trash Button - ONLY FOR ADMIN */}
+                        {isAdmin && onDeleteSession && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -188,7 +207,7 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
                               setSessionToDelete(s);
                             }}
                             className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
-                            title="Hapus Sesi Ini"
+                            title="Hapus Sesi Ini (Khusus Admin)"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -201,20 +220,20 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
             )}
           </div>
 
-          {/* Delete Active Session Button (Quick Access Trash Bin) */}
-          {onDeleteSession && activeSession && (
+          {/* Delete Active Session Button (Quick Access Trash Bin) - ONLY FOR ADMIN */}
+          {isAdmin && onDeleteSession && activeSession && (
             <button
               type="button"
               onClick={() => setSessionToDelete(activeSession)}
               className="p-2.5 bg-emerald-900/80 hover:bg-rose-900/80 text-emerald-300 hover:text-rose-200 rounded-xl border border-emerald-600 hover:border-rose-500 transition-all cursor-pointer"
-              title="Hapus Sesi Aktif Ini"
+              title="Hapus Sesi Aktif Ini (Khusus Admin)"
             >
               <Trash2 className="w-4 h-4" />
             </button>
           )}
 
-          {/* Create New Session Button */}
-          {isPenginput && (
+          {/* Create New Session Button (Based on canCreateSession or Admin) */}
+          {(isAdmin || canCreateSession) && (
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
@@ -227,8 +246,8 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {sessionToDelete && (
+      {/* Delete Confirmation Modal (Admin Only) */}
+      {isAdmin && sessionToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="bg-white text-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-rose-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3">
@@ -242,7 +261,7 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
                 <p className="text-xs text-gray-600 mt-1">
                   Apakah Anda yakin ingin menghapus sesi{' '}
                   <strong className="text-gray-900">
-                    "{sessionToDelete.title}" ({sessionToDelete.date})
+                    &quot;{sessionToDelete.title}&quot; ({sessionToDelete.date})
                   </strong>
                   ? Seluruh data presensi pada sesi ini akan dihapus permanen.
                 </p>
@@ -364,4 +383,5 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
     </div>
   );
 };
+
 

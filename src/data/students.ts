@@ -1,4 +1,4 @@
-import { Student, FastingSession } from '../types';
+import { Student, FastingSession, AdminSettings } from '../types';
 import { INITIAL_STUDENTS } from './initialStudents';
 import { STUDENTS_PART2 } from './studentsDataPart2';
 import { STUDENTS_PART3 } from './studentsDataPart3';
@@ -120,6 +120,31 @@ export function deleteSession(sessionId: string): void {
   const sessions = getStoredSessions();
   delete sessions[sessionId];
   saveAllStoredSessions(sessions);
+}
+
+const ADMIN_SETTINGS_KEY = 'sr_kediri_admin_settings_v1';
+
+export function getStoredAdminSettings(): AdminSettings {
+  try {
+    const raw = localStorage.getItem(ADMIN_SETTINGS_KEY);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error('Error reading admin settings:', e);
+  }
+  return {
+    allowPenginputCreateSession: true,
+    defaultDeadlineTime: '15:00',
+  };
+}
+
+export function saveStoredAdminSettings(settings: AdminSettings): void {
+  try {
+    localStorage.setItem(ADMIN_SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.error('Error saving admin settings:', e);
+  }
 }
 
 // CSV Parser helper function

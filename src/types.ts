@@ -29,14 +29,24 @@ export interface FastingSession {
   verifiedBy?: string;
   verifiedAt?: string;
   verifierNotes?: string;
+  isLocked?: boolean; // When true, only Admin can edit/input
+  lockedAt?: string;
+  lockedBy?: string;
+  inputDeadline?: string; // e.g., "15:00"
   createdById?: string;
   updatedAt?: string;
 }
 
-export type UserRole = 'penginput' | 'pengecek';
+export type UserRole = 'admin' | 'penginput' | 'pengecek';
 
 export interface UserSession {
   username: string;
   role: UserRole;
   name: string;
 }
+
+export interface AdminSettings {
+  allowPenginputCreateSession: boolean;
+  defaultDeadlineTime: string;
+}
+
